@@ -1,44 +1,49 @@
 /**
- * AuthContext manages the user's authentication state by storing a token,
- * It provides functions for the user to register, log in, and log out,
- * all of which update the token in state.
+ * AuthContext manages the user's authentication token and exposes register/login/logout.
  */
-
 import { createContext, useContext, useState } from "react";
 
-// import.meta.env allows us to access environment variables,
-// which are defined in a file named .env
-const API = import.meta.env.VITE_API;
+const API = import.meta.env.VITE_API ?? "https://fitnesstrac-kr.herokuapp.com/api";
+console.log("API base is:", API);
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
+
+// Safe parser: handles empty/non-JSON bodies and throws useful errors
+async function parseMaybeJson(response) {
+  const text = await response.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { /* ignore non-JSON */ }
+
+  if (!response.ok) {
+    const msg = data?.message || data?.error || `${response.status} ${response.statusText}`;
+    throw new Error(msg);
+  }
+  return data;
+}
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState();
+  const [token, setToken] = useState(null);
 
   const register = async (credentials) => {
-    const response = await fetch(API + "/users/register", {
+    const res = await fetch(`${API}/users/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
     });
-    const result = await response.json();
-    if (!response.ok) {
-      throw Error(result.message);
-    }
-    setToken(result.token);
+    const data = await parseMaybeJson(res);
+    if (!data?.token) throw new Error("No token returned from server.");
+    setToken(data.token);
   };
 
   const login = async (credentials) => {
-    const response = await fetch(API + "/users/login", {
+    const res = await fetch(`${API}/users/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(credentials),
     });
-    const result = await response.json();
-    if (!response.ok) {
-      throw Error(result.message);
-    }
-    setToken(result.token);
+    const data = await parseMaybeJson(res);
+    if (!data?.token) throw new Error("No token returned from server.");
+    setToken(data.token);
   };
 
   const logout = () => setToken(null);
@@ -48,7 +53,7 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw Error("useAuth must be used within AuthProvider");
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
 }

@@ -6,26 +6,28 @@ import { usePage } from "../layout/PageContext";
 export default function Register() {
   const { register } = useAuth();
   const { setPage } = usePage();
-
   const [error, setError] = useState(null);
 
-  const tryRegister = async (formData) => {
+  async function onSubmit(e) {
+    e.preventDefault();
     setError(null);
 
-    const username = formData.get("username");
-    const password = formData.get("password");
+    const fd = new FormData(e.currentTarget);
+    const username = fd.get("username");
+    const password = fd.get("password");
+
     try {
       await register({ username, password });
       setPage("activities");
-    } catch (e) {
-      setError(e.message);
+    } catch (err) {
+      setError(err.message);
     }
-  };
+  }
 
   return (
     <>
       <h1>Register for an account</h1>
-      <form action={tryRegister}>
+      <form onSubmit={onSubmit}>
         <label>
           Username
           <input type="text" name="username" required />
@@ -35,11 +37,9 @@ export default function Register() {
           <input type="password" name="password" required />
         </label>
         <button>Register</button>
-        {error && <p role="alert">{error}</p>}
+        {error && <p role="alert" style={{ color: "red" }}>{error}</p>}
       </form>
-      <a onClick={() => setPage("login")}>
-        Already have an account? Log in here.
-      </a>
+      <a onClick={() => setPage("login")}>Already have an account? Log in here.</a>
     </>
   );
 }
